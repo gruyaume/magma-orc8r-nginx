@@ -1,0 +1,60 @@
+name: magma-orc8r-nginx
+version: "1.6.1"
+build-base: ubuntu:22.04
+base: ubuntu:22.04
+summary: magma-orc8r-nginx
+description: magma-orc8r-nginx
+license: Apache-2.0
+platforms:
+  amd64:
+
+cmd: ["nginx"]
+
+parts:
+
+  nginx:
+    plugin: nil
+    source: https://nginx.org/download/nginx-1.23.2.tar.gz
+    build-packages:
+      - libgd-dev
+      - libpcre3-dev
+      - libssl-dev
+      - zlib1g-dev
+    stage-packages:
+      - libpcre3-dev
+      - libssl-dev
+      - ca-certificates
+    override-build: |
+      ./configure --prefix=/var/www/html --sbin-path=/usr/sbin/nginx --conf-path=/etc/nginx/nginx.conf --http-log-path=/var/log/nginx/access.log --error-log-path=/var/log/nginx/error.log --with-pcre  --lock-path=/var/lock/nginx.lock --pid-path=/var/run/nginx.pid --with-http_ssl_module --with-http_image_filter_module=dynamic --modules-path=/etc/nginx/modules --with-http_v2_module --with-stream=dynamic --with-http_addition_module --with-http_mp4_module
+      make
+      make install
+      mkdir -p $CRAFT_PART_INSTALL/etc/nginx/modules $CRAFT_PART_INSTALL/var/www/html/ $CRAFT_PART_INSTALL/usr/sbin/ $CRAFT_PART_INSTALL/var/log/nginx/ $CRAFT_PART_INSTALL/var/lock/ $CRAFT_PART_INSTALL/var/run
+      cp -r /var/www/html $CRAFT_PART_INSTALL/var/www/
+      cp -r /usr/sbin/nginx $CRAFT_PART_INSTALL/usr/sbin/
+      cp -r /etc/nginx/ $CRAFT_PART_INSTALL/etc/
+      cp -r /var/log/nginx/ $CRAFT_PART_INSTALL/var/log/
+
+  magma-files:
+    plugin: dump
+    source: https://github.com/magma/magma
+    source-type: git
+    source-tag: v1.6.1
+    organize:
+      orc8r/cloud/configs/*: etc/magma/configs/orc8r/
+      lte/cloud/configs/*: etc/magma/configs/lte/
+      feg/cloud/configs/*: etc/magma/configs/feg/
+      orc8r/cloud/docker/nginx/templates: etc/magma/templates
+      orc8r/cloud/docker/nginx/generate_nginx_configs.py: usr/local/bin/generate_nginx_configs.py
+      orc8r/cloud/docker/nginx/create_test_proxy_certs: usr/local/bin/create_test_proxy_certs
+    override-prime: |
+      mkdir -p $CRAFT_PRIME/var/opt/magma/envdir
+      craftctl default
+
+  python:
+    plugin: python
+    source: .
+    python-packages:
+      - PyYAML
+      - jinja2
+    stage-packages:
+      - python3-venv
